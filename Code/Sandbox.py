@@ -12,6 +12,7 @@ import numpy as np
 from copy import deepcopy
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
+from time import clock
 
 class Sandbox:
 	def __init__(self):
@@ -106,11 +107,17 @@ class Sandbox:
 			print("Testing set:")
 			for te in self.testing:
 				print(te[2])
+			## Validation error
+			validationError = 0
+			## Timing value
+			self.computingTime = []
 			## Loop through epochs
 			for epoch in range(self.maxEpochs):
 				## Perform online training
 				errors = []
 				print("Training!")
+				## Start training time 
+				self.start_time = clock()
 				for tr in self.training:
 					## Get inputs to each layer
 					inpTr = self.normalize(tr[1])
@@ -133,6 +140,10 @@ class Sandbox:
 					## Update weights
 					for l in range(self.layersLen-1, 0, -1):
 						self.layers[l].update_layer_weights()
+				## Finish training time
+				self.end_time = clock()
+				self.computingTime.append(self.end_time-self.start_time)
+				## Average training error
 				print("Average training error: "+str(sum(errors)/self.trainingLen))
 				## Perform validation
 				errors = []
@@ -146,15 +157,19 @@ class Sandbox:
 					error = self.layers[self.layersLen-1].get_error_vector([v[0]])
 					big_e = 0.5 * error[0] ** 2
 					errors.append(big_e)
-				print("Average validation error: "+str(sum(errors)/self.validationLen))
+				## Get average validation error
+				epochValidationError = sum(errors)/self.validationLen
+				print("Average validation error: "+str(epochValidationError))
 				## Terminate training, validation 
-				## if errorThreshold is greater than error
-				if sum(errors)/self.validationLen < self.errorThreshold:
+				## if epoch is not 0 errorThreshold is greater than error or greater than previous iteration then stop
+				if epoch != 0 and (epochValidationError < self.errorThreshold or epochValidationError >= validationError):
 					break
+				else:
+					validationError = epochValidationError
 			## Perform testing
 			self.true = []
 			self.pred = []
-			errors = []
+			self.errors = []
 			print("Testing!")
 			for te in self.testing:
 				## Get true value
@@ -166,7 +181,7 @@ class Sandbox:
 				## Calculate error
 				error = self.layers[self.layersLen-1].get_error_vector([te[0]])
 				big_e = 0.5 * error[0] ** 2
-				errors.append(big_e)
+				self.errors.append(big_e)
 				if inpTe[0] >= self.lesionThreshold:
 					self.pred.append(1.0)
 				else:
@@ -180,13 +195,19 @@ class Sandbox:
 		## Create confusion matrix
 		cm = confusion_matrix(self.true, self.pred)
 		## Plot confusion matrix
+		'''
 		plt.matshow(cm)
 		plt.title('Confusion matrix')
 		plt.colorbar()
 		plt.ylabel('True label')
 		plt.xlabel('Predicted label')
 		plt.show()
+		'''
 		return cm
+	# getTiming - Get computational timing
+	# @return - Computing time array
+	def getComputingTime(self):
+		return self.computingTime
 	# setLesionThreshold - Set the lesion threshold
 	# @param - float, [0.0,1.0], threshold between non-lesion, lesion
 	def setLesionThreshold(self,
